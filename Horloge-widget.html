@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<title>Horloge des marchés — cadran noir</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page:#050506;
+    --panneau:#0B0C0E;
+    --filet:#191B1F;
+    --filet-2:#282B31;
+    --argent:#C4C8CE;
+    --argent-clair:#EDEFF2;
+    --sourd:#71767E;
+    /* séances : acier gris, du plus profond au plus clair */
+    --m1:#2E3238; --m2:#454B54; --m3:#646C77; --m4:#8C949E; --m5:#3A4A52;
+    /* alertes de séance */
+    --preouv:#C8A05A;   /* laiton — pré-ouverture */
+    --opr:#B4453B;      /* rouge sourd — OPR en cours */
+    --ouvert:#3E8E6E;   /* vert sourd — séance en cours */
+    --bleui:#3E7BD6;    /* acier bleui — chevauchement, trotteuse */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--page);
+    background-image:radial-gradient(120% 70% at 50% -8%,#111316 0%,#050506 60%,#020203 100%);
+    color:var(--argent);font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+    -webkit-font-smoothing:antialiased;min-height:100dvh;padding:14px 12px 34px}
+  .shell{max-width:470px;margin:0 auto}
+  .lab{font-family:'Jost',sans-serif;letter-spacing:.28em;text-transform:uppercase;font-weight:400}
+
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}
+  .marque{font-family:'Cormorant Garamond',Georgia,serif;font-size:21px;color:var(--argent-clair)}
+  .marque span{display:block;font-family:'Jost',sans-serif;font-size:8px;letter-spacing:.34em;
+    text-transform:uppercase;color:var(--sourd);margin-top:3px}
+  .heure-h{font-size:26px;font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:var(--argent-clair)}
+  .heure-h .s{font-size:.45em;color:var(--bleui);margin-left:2px;letter-spacing:0}
+  .ref{font-family:'Jost',sans-serif;font-size:9px;letter-spacing:.24em;text-transform:uppercase;
+    color:var(--argent);background:none;border:1px solid var(--filet-2);padding:7px 10px;cursor:pointer}
+  .ref:focus-visible{outline:2px solid var(--bleui);outline-offset:2px}
+
+  .banniere{border:1px solid var(--filet);border-left:2px solid var(--filet-2);background:var(--panneau);
+    padding:11px 13px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+  .banniere .quoi{font-family:'Jost',sans-serif;font-size:8px;letter-spacing:.26em;text-transform:uppercase;color:var(--sourd)}
+  .banniere .qui{font-size:12.5px;margin-top:5px}
+  .banniere .temps{font-size:19px;font-variant-numeric:tabular-nums;letter-spacing:-.4px;color:var(--argent-clair)}
+  .banniere.preouv{border-left-color:var(--preouv)} .banniere.preouv .temps{color:var(--preouv)}
+  .banniere.opr{border-left-color:var(--opr)} .banniere.opr .temps{color:var(--opr)}
+  .banniere.ouvert{border-left-color:var(--ouvert)} .banniere.ouvert .temps{color:var(--ouvert)}
+  .banniere.imminent{animation:respire 2s ease-in-out infinite}
+  @keyframes respire{50%{background:#121417}}
+
+  .cadran{width:100%;aspect-ratio:1;filter:drop-shadow(0 20px 44px rgba(0,0,0,.75))}
+  svg{width:100%;height:100%;display:block}
+  .pulse{animation:battement 2s ease-in-out infinite}
+  @keyframes battement{0%,100%{opacity:1}50%{opacity:.42}}
+
+  .modes{display:flex;border:1px solid var(--filet);margin:17px 0 0}
+  .modes button{flex:1;padding:11px 4px;background:none;border:0;border-right:1px solid var(--filet);
+    color:var(--sourd);font-family:'Jost',sans-serif;font-size:9.5px;letter-spacing:.26em;
+    text-transform:uppercase;cursor:pointer}
+  .modes button:last-child{border-right:0}
+  .modes button[aria-selected="true"]{background:var(--argent-clair);color:var(--page)}
+
+  table{width:100%;border-collapse:collapse}
+  th{font-family:'Jost',sans-serif;font-size:8px;letter-spacing:.24em;text-transform:uppercase;color:#5B6169;
+    font-weight:400;text-align:left;padding:15px 0 7px;border-bottom:1px solid var(--filet)}
+  th.r,td.r{text-align:right}
+  td{padding:10px 0;border-bottom:1px solid #131519;font-size:12px}
+  .place{display:flex;align-items:center;gap:9px}
+  .jeton{width:7px;height:7px;flex:0 0 7px;transform:rotate(45deg)}
+  .sous{font-size:9px;color:#6A7079;margin-top:3px}
+  .chip{display:inline-block;font-family:'Jost',sans-serif;font-size:8.5px;letter-spacing:.2em;
+    text-transform:uppercase;padding:3px 7px;border:1px solid currentColor}
+  .chip.ferme{color:#5B6169;border-color:#1E2126}
+  .chip.preouv{color:var(--preouv)} .chip.opr{color:var(--opr)} .chip.ouvert{color:var(--ouvert)}
+  .cd{font-variant-numeric:tabular-nums;font-size:11px;color:#969CA5;margin-top:4px}
+  tr.dim td{opacity:.58}
+  .cle{display:flex;gap:15px;flex-wrap:wrap;margin-top:12px;font-family:'Jost',sans-serif;font-size:8.5px;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--sourd)}
+  .cle i{display:inline-block;width:13px;height:2px;margin-right:6px;vertical-align:middle}
+  .pied{margin-top:13px;font-size:9.5px;line-height:1.85;color:#6A7079}
+  .pied b{color:#A6ACB5;font-weight:400}
+
+  @media (min-width:920px){
+    .shell{max-width:1020px;display:grid;grid-template-columns:1fr 400px;gap:48px;align-items:start}
+    header,.banniere{grid-column:1/-1}
+    .col-b{padding-top:2px}.modes{margin-top:0}
+  }
+  @media (prefers-reduced-motion:reduce){.pulse,.banniere.imminent{animation:none}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="marque">Séance mondiale<span class="lab">Cadran 24 h · OPR</span></div>
+    <div class="heure-h" id="hHeure">--:--<span class="s">--</span></div>
+    <button class="ref" id="btnRef">Paris</button>
+  </header>
+
+  <div class="banniere" id="banniere">
+    <div><div class="quoi" id="bQuoi">Prochain événement</div><div class="qui" id="bQui">—</div></div>
+    <div class="temps" id="bTemps">--:--</div>
+  </div>
+
+  <div class="col-a">
+    <div class="cadran"><svg id="dial" viewBox="0 0 440 440" aria-label="Cadran 24 heures des séances de marché"></svg></div>
+  </div>
+
+  <div class="col-b">
+    <div class="modes" role="tablist">
+      <button role="tab" data-mode="crypto" aria-selected="true">Crypto</button>
+      <button role="tab" data-mode="forex" aria-selected="false">Forex</button>
+      <button role="tab" data-mode="bourses" aria-selected="false">Bourses</button>
+    </div>
+    <table>
+      <thead><tr><th>Place</th><th class="r">Séance · OPR</th><th class="r">Statut</th></tr></thead>
+      <tbody id="corps"></tbody>
+    </table>
+    <div class="cle">
+      <span><i style="background:var(--preouv)"></i>Pré-ouverture</span>
+      <span><i style="background:var(--opr)"></i>OPR</span>
+      <span><i style="background:var(--ouvert)"></i>Séance</span>
+      <span><i style="background:var(--bleui)"></i>Chevauchement</span>
+    </div>
+    <p class="pied" id="pied"></p>
+  </div>
+</div>
+
+<script>
+const PREAVIS=30, IMMINENT=10;
+const REFS=['Europe/Paris','UTC']; let refIdx=0;
+const ref=()=>REFS[refIdx], refNom=()=>refIdx===0?'Paris':'UTC';
+
+const MODES={
+  crypto:{
+    pied:'Sur crypto, l’<b>OPR</b> qui compte est celle des places traditionnelles : le range des premières minutes après 09:00 Londres et 15:30 New York donne les bornes que le BTC vient chercher. Losanges = <b>funding</b> (00:00 · 08:00 · 16:00 UTC).',
+    continu:{nom:'BTC · ETH · SOL · XRP',meta:'Spot et perpétuels — sans interruption'},
+    marches:[
+      {id:'asie',nom:'Session Asie',court:'ASIE',meta:'Tokyo · Hong Kong',tz:'Asia/Tokyo',open:9,close:17,opr:15,jours:[1,2,3,4,5],c:'--m2'},
+      {id:'euro',nom:'Session Europe',court:'EUROPE',meta:'Londres · Francfort',tz:'Europe/London',open:8,close:16,opr:15,jours:[1,2,3,4,5],c:'--m3'},
+      {id:'us',nom:'Session US',court:'ÉTATS-UNIS',meta:'Cash US — la plus nerveuse',tz:'America/New_York',open:9.5,close:16.5,opr:30,jours:[1,2,3,4,5],c:'--m4'}
+    ],reperes:[0,8,16]
+  },
+  forex:{
+    pied:'Ouverture le dimanche à Sydney, clôture le vendredi à New York. L’anneau extérieur s’éclaire en <b>acier bleui</b> là où deux places se chevauchent — c’est là que passe le volume.',
+    continu:null,
+    marches:[
+      {id:'syd',nom:'Sydney',court:'SYDNEY',meta:'Ouvre la semaine',tz:'Australia/Sydney',open:8,close:17,opr:15,jours:[1,2,3,4,5],c:'--m5'},
+      {id:'tok',nom:'Tokyo',court:'TOKYO',meta:'JPY · AUD',tz:'Asia/Tokyo',open:9,close:18,opr:15,jours:[1,2,3,4,5],c:'--m1'},
+      {id:'lon',nom:'Londres',court:'LONDRES',meta:'Premier volume mondial',tz:'Europe/London',open:8,close:17,opr:15,jours:[1,2,3,4,5],c:'--m3'},
+      {id:'ny',nom:'New York',court:'NEW YORK',meta:'Chevauche Londres',tz:'America/New_York',open:8,close:17,opr:30,jours:[1,2,3,4,5],c:'--m4'}
+    ],reperes:[]
+  },
+  bourses:{
+    pied:'L’<b>OPR</b> se lit sur l’indice de la place : 09:00 pour le CAC et le DAX, 15:30 pour le S&P et le Nasdaq. Les futures CME tournent en continu, coupure de maintenance exceptée.',
+    continu:null,
+    marches:[
+      {id:'tse',nom:'Tokyo — TSE',court:'TOKYO',meta:'Nikkei 225',tz:'Asia/Tokyo',open:9,close:15.5,opr:15,jours:[1,2,3,4,5],c:'--m1'},
+      {id:'lse',nom:'Londres — LSE',court:'LONDRES',meta:'FTSE 100',tz:'Europe/London',open:8,close:16.5,opr:15,jours:[1,2,3,4,5],c:'--m2'},
+      {id:'par',nom:'Paris — Euronext',court:'EURONEXT',meta:'CAC 40 · DAX',tz:'Europe/Paris',open:9,close:17.5,opr:15,jours:[1,2,3,4,5],c:'--m5'},
+      {id:'ny',nom:'New York — NYSE',court:'NEW YORK',meta:'S&P 500 · Nasdaq',tz:'America/New_York',open:9.5,close:16,opr:30,jours:[1,2,3,4,5],c:'--m4'},
+      {id:'cme',nom:'CME — futures',court:'CME',meta:'MNQ · or — pause 1 h',tz:'America/Chicago',open:17,close:16,opr:15,jours:[0,1,2,3,4],c:'--m3'}
+    ],reperes:[]
+  }
+};
+let mode='crypto';
+
+function partsIn(tz,d){
+  const f=new Intl.DateTimeFormat('en-US',{timeZone:tz,hour12:false,weekday:'short',year:'numeric',
+    month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const p={};for(const{type,value}of f.formatToParts(d))p[type]=value;
+  const J={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+  return{y:+p.year,mo:+p.month,da:+p.day,h:(+p.hour)%24,mi:+p.minute,se:+p.second,wd:J[p.weekday],
+    dec:((+p.hour)%24)+(+p.minute)/60+(+p.second)/3600};
+}
+function offsetH(tz,d){
+  const p=partsIn(tz,d);
+  return Math.round((Date.UTC(p.y,p.mo-1,p.da,p.h,p.mi,p.se)-(d.getTime()-d.getMilliseconds()))/60000)/60;
+}
+const mod24=x=>((x%24)+24)%24, mod360=x=>((x%360)+360)%360;
+const versRef=(h,tz,d)=>mod24(h-offsetH(tz,d)+offsetH(ref(),d));
+const utcVersRef=(h,d)=>mod24(h+offsetH(ref(),d));
+
+function etat(m,d){
+  const p=partsIn(m.tz,d),h=p.dec,boucle=m.close<=m.open;
+  let dedans=false,jour=p.wd;
+  if(!boucle)dedans=h>=m.open&&h<m.close;
+  else if(h>=m.open)dedans=true;
+  else if(h<m.close){dedans=true;jour=(p.wd+6)%7;}
+  if(dedans&&m.jours.includes(jour)){
+    const depuis=mod24(h-m.open);
+    const versClo=boucle?(h>=m.open?(24-h)+m.close:m.close-h):m.close-h;
+    if(depuis*60<m.opr)return{code:'opr',t:m.opr/60-depuis,mot:'fin de l’OPR dans',ouvert:true};
+    return{code:'ouvert',t:versClo,mot:'clôture dans',ouvert:true};
+  }
+  let t=0;
+  for(let j=0;j<9;j++){
+    const jr=(p.wd+j)%7;
+    if(!m.jours.includes(jr))continue;
+    if(j===0&&h>=m.open)continue;
+    t=j===0?m.open-h:(24-h)+m.open+24*(j-1);break;
+  }
+  if(t*60<=PREAVIS)return{code:'preouv',t,mot:'ouverture dans',ouvert:false,imminent:t*60<=IMMINENT};
+  return{code:'ferme',t,mot:'ouvre dans',ouvert:false};
+}
+function duree(x){
+  const t=Math.max(0,Math.round(x*3600)),h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60;
+  return h>0?`${h} h ${String(m).padStart(2,'0')}`:`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+const hhmm=x=>`${String(Math.floor(mod24(x))).padStart(2,'0')}:${String(Math.round(mod24(x)%1*60)).padStart(2,'0')}`;
+
+const C=220,NS='http://www.w3.org/2000/svg';
+const pt=(a,r)=>[C+r*Math.sin(a*Math.PI/180),C-r*Math.cos(a*Math.PI/180)];
+function chemin(a1,a2,r,horaire=true){
+  const[x1,y1]=pt(a1,r),[x2,y2]=pt(a2,r);
+  const span=horaire?mod360(a2-a1):mod360(a1-a2);
+  return`M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${span>180?1:0} ${horaire?1:0} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+}
+const el=(n,a={})=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+
+const svg=document.getElementById('dial');
+let gDial,defs,chiffres=[],etiquettes=[],trotteuse,tLieu,tOuverts,tDate,segments=[];
+
+function construire(){
+  svg.textContent='';chiffres=[];etiquettes=[];segments=[];
+  const d=new Date(),M=MODES[mode];
+  defs=el('defs');svg.appendChild(defs);
+
+  /* cadran noir, finition azurée (cercles concentriques) */
+  const g=el('radialGradient',{id:'noir',cx:'50%',cy:'34%',r:'74%'});
+  g.appendChild(el('stop',{offset:'0%','stop-color':'#17191D'}));
+  g.appendChild(el('stop',{offset:'62%','stop-color':'#0B0C0E'}));
+  g.appendChild(el('stop',{offset:'100%','stop-color':'#020203'}));
+  defs.appendChild(g);
+  svg.appendChild(el('circle',{cx:C,cy:C,r:215,fill:'url(#noir)'}));
+  const azur=el('g',{opacity:.5});
+  for(let r=64;r<212;r+=3)
+    azur.appendChild(el('circle',{cx:C,cy:C,r,fill:'none',stroke:'rgba(255,255,255,.028)','stroke-width':.7}));
+  svg.appendChild(azur);
+  svg.appendChild(el('circle',{cx:C,cy:C,r:215,fill:'none',stroke:'rgba(230,235,242,.16)','stroke-width':1.4}));
+
+  gDial=el('g');svg.appendChild(gDial);
+
+  /* anneau extérieur : profil d'activité, chevauchements en acier bleui */
+  const plages=M.marches.map(m=>({o:versRef(m.open,m.tz,d),span:mod24(m.close-m.open)||24}));
+  for(let i=0;i<96;i++){
+    const hh=i*0.25;let n=0;
+    plages.forEach(p=>{if(mod24(hh-p.o)<p.span)n++;});
+    const seg=el('path',{d:chemin(i*3.75,i*3.75+3.6,200),fill:'none',
+      stroke:n>=2?'var(--bleui)':'#7C838D','stroke-width':n===0?3:9,
+      opacity:n===0?.14:n===1?.34:n===2?.8:1});
+    gDial.appendChild(seg);segments.push(seg);
+  }
+
+  /* index appliqués et chiffres */
+  for(let h=0;h<24;h++){
+    const a=h*15,maj=h%2===0;
+    if(maj){
+      const[x,y]=pt(a,186);
+      gDial.appendChild(el('rect',{x:x-1.4,y:y-5,width:2.8,height:10,fill:'#E2E6EC',opacity:.92,
+        transform:`rotate(${a} ${x} ${y})`}));
+      const[tx,ty]=pt(a,166);
+      const t=el('text',{x:tx,y:ty+5,'text-anchor':'middle','font-size':15,fill:'#CFD4DB',
+        'font-family':"'Cormorant Garamond',Georgia,serif"});
+      t.textContent=String(h).padStart(2,'0');
+      gDial.appendChild(t);chiffres.push({n:t,x:tx,y:ty+5});
+    }else{
+      const[x1,y1]=pt(a,182),[x2,y2]=pt(a,190);
+      gDial.appendChild(el('line',{x1,y1,x2,y2,stroke:'#8C939C','stroke-width':.8,opacity:.5}));
+    }
+  }
+
+  const n=M.marches.length,r0=148,pas=n>4?19:23,larg=n>4?15:18;
+  M.marches.forEach((m,i)=>{
+    const o=versRef(m.open,m.tz,d)*15,span=(mod24(m.close-m.open)||24)*15,r=r0-pas*i;
+    m._r=r;m._a1=o;m._a2=o+span;m._larg=larg;
+    m._rail=el('path',{d:chemin(o,o+span,r),fill:'none',stroke:`var(${m.c})`,'stroke-width':larg,opacity:.3});
+    gDial.appendChild(m._rail);
+    m._pre=el('path',{d:chemin(o-(PREAVIS/60)*15,o,r),fill:'none',stroke:'var(--preouv)','stroke-width':larg*.32,opacity:.25});
+    gDial.appendChild(m._pre);
+    m._opr=el('path',{d:chemin(o,o+(m.opr/60)*15,r),fill:'none',stroke:'var(--opr)','stroke-width':larg,opacity:.45});
+    gDial.appendChild(m._opr);
+    [o,o+span].forEach(a=>{
+      const[ax,ay]=pt(a,r+larg/2),[bx,by]=pt(a,r-larg/2);
+      gDial.appendChild(el('line',{x1:ax,y1:ay,x2:bx,y2:by,stroke:'#020203','stroke-width':1.5,opacity:.9}));
+    });
+    const idp=`p5-${m.id}`;
+    const p=el('path',{id:idp,fill:'none'});defs.appendChild(p);
+    const t=el('text',{'font-family':"'Jost',sans-serif",'font-size':10,'letter-spacing':'2.8',
+      fill:'#E4E8EE'});
+    const tp=el('textPath',{startOffset:'50%','text-anchor':'middle'});
+    tp.setAttributeNS('http://www.w3.org/1999/xlink','href','#'+idp);
+    tp.setAttribute('href','#'+idp);tp.textContent=m.court;
+    t.appendChild(tp);gDial.appendChild(t);
+    etiquettes.push({m,p,t});
+  });
+
+  (M.reperes||[]).forEach(h=>{
+    const a=utcVersRef(h,d)*15,[x,y]=pt(a,159);
+    gDial.appendChild(el('rect',{x:x-2.6,y:y-2.6,width:5.2,height:5.2,fill:'#C8A05A',opacity:.85,
+      transform:`rotate(45 ${x} ${y})`}));
+  });
+
+  tLieu=el('text',{x:C,y:C-26,'text-anchor':'middle','font-size':9,fill:'#828892',
+    'font-family':"'Jost',sans-serif",'letter-spacing':2.4});
+  tOuverts=el('text',{x:C,y:C-11,'text-anchor':'middle','font-size':10.5,fill:'#DDE1E7',
+    'font-family':"'Jost',sans-serif",'letter-spacing':2.4});
+  tDate=el('text',{x:C,y:C+42,'text-anchor':'middle','font-size':8.5,fill:'#767C86',
+    'font-family':"'Jost',sans-serif",'letter-spacing':2.8});
+  svg.appendChild(tLieu);svg.appendChild(tOuverts);svg.appendChild(tDate);
+
+  svg.appendChild(el('path',{d:`M ${C} 30 L ${C-6} 13 L ${C+6} 13 Z`,fill:'#EDEFF2'}));
+
+  /* trotteuse acier bleui, avec reflet */
+  const lg=el('linearGradient',{id:'acier',x1:'0%',y1:'0%',x2:'100%',y2:'0%'});
+  lg.appendChild(el('stop',{offset:'0%','stop-color':'#12336E'}));
+  lg.appendChild(el('stop',{offset:'42%','stop-color':'#5C9BF2'}));
+  lg.appendChild(el('stop',{offset:'58%','stop-color':'#2E63BE'}));
+  lg.appendChild(el('stop',{offset:'100%','stop-color':'#0E2551'}));
+  defs.appendChild(lg);
+  const lame=`M ${C-1.3} ${C+28} L ${C-0.55} 60 L ${C+0.55} 60 L ${C+1.3} ${C+28} Z`;
+  trotteuse=el('g');
+  trotteuse.appendChild(el('path',{d:lame,fill:'rgba(0,0,0,.55)',transform:'translate(1.8,2.4)'}));
+  trotteuse.appendChild(el('path',{d:lame,fill:'url(#acier)'}));
+  trotteuse.appendChild(el('rect',{x:C-0.25,y:62,width:.5,height:C-34,fill:'rgba(255,255,255,.55)'}));
+  trotteuse.appendChild(el('circle',{cx:C,cy:C+32,r:3.6,fill:'url(#acier)'}));
+  svg.appendChild(trotteuse);
+  svg.appendChild(el('circle',{cx:C,cy:C,r:5.2,fill:'#EDEFF2'}));
+  svg.appendChild(el('circle',{cx:C,cy:C,r:2.1,fill:'#12336E'}));
+
+  const corps=document.getElementById('corps');corps.textContent='';
+  if(M.continu){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><div class="place"><i class="jeton" style="background:var(--ouvert)"></i>
+      <span>${M.continu.nom}<div class="sous">${M.continu.meta}</div></span></div></td>
+      <td class="r">24 h</td><td class="r"><span class="chip ouvert">Ouvert</span><div class="cd">en continu</div></td>`;
+    corps.appendChild(tr);
+  }
+  M.marches.forEach(m=>{
+    const tr=document.createElement('tr');tr.dataset.id=m.id;
+    tr.innerHTML=`<td><div class="place"><i class="jeton" style="background:var(${m.c})"></i>
+      <span>${m.nom}<div class="sous">${m.meta}</div></span></div></td>
+      <td class="r"><span class="plage"></span><div class="sous opr-h"></div></td>
+      <td class="r"><span class="chip"></span><div class="cd"></div></td>`;
+    corps.appendChild(tr);
+  });
+  document.getElementById('pied').innerHTML=M.pied;
+  rafraichir();
+}
+
+const doux=!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function battre(){
+  const d=new Date(),p=partsIn(ref(),d);
+  const sec=doux?p.se+d.getMilliseconds()/1000:p.se;
+  trotteuse.setAttribute('transform',`rotate(${sec*6} ${C} ${C})`);
+  const a=p.dec*15;
+  gDial.setAttribute('transform',`rotate(${-a} ${C} ${C})`);
+  chiffres.forEach(c=>c.n.setAttribute('transform',`rotate(${a} ${c.x} ${c.y})`));
+  etiquettes.forEach(({m,p:path})=>{
+    const milieu=mod360((m._a1+m._a2)/2-a),bas=milieu>90&&milieu<270;
+    path.setAttribute('d',bas?chemin(m._a2,m._a1,m._r+4.4,false):chemin(m._a1,m._a2,m._r-4,true));
+  });
+  requestAnimationFrame(battre);
+}
+
+const RANG={opr:0,preouv:1,ouvert:2,ferme:3};
+function rafraichir(){
+  const d=new Date(),M=MODES[mode],p=partsIn(ref(),d);
+  document.getElementById('hHeure').innerHTML=
+    `${String(p.h).padStart(2,'0')}:${String(p.mi).padStart(2,'0')}<span class="s">${String(p.se).padStart(2,'0')}</span>`;
+  tDate.textContent=new Intl.DateTimeFormat('fr-FR',{timeZone:ref(),weekday:'short',day:'numeric',month:'short'})
+    .format(d).toUpperCase().replace(/\./g,'');
+
+  const MOTS={opr:'OPR en cours',preouv:'Pré-ouverture',ouvert:'Ouvert',ferme:'Fermé'};
+  let vedette=null,ouverts=[];
+  M.marches.forEach(m=>{
+    const e=etat(m,d);m._e=e;
+    if(e.ouvert)ouverts.push(m.court);
+    m._rail.setAttribute('opacity',e.ouvert?.85:.24);
+    m._rail.setAttribute('stroke',e.code==='ouvert'?'var(--ouvert)':`var(${m.c})`);
+    m._opr.setAttribute('opacity',e.code==='opr'?1:(e.ouvert||e.code==='preouv'?.5:.26));
+    m._opr.classList.toggle('pulse',e.code==='opr');
+    m._pre.setAttribute('opacity',e.code==='preouv'?1:.2);
+    m._pre.setAttribute('stroke-width',e.code==='preouv'?m._larg*.58:m._larg*.32);
+    m._pre.classList.toggle('pulse',!!e.imminent);
+    const tr=document.querySelector(`tr[data-id="${m.id}"]`);
+    if(tr){
+      tr.classList.toggle('dim',e.code==='ferme');
+      const o=versRef(m.open,m.tz,d);
+      tr.querySelector('.plage').textContent=`${hhmm(o)} – ${hhmm(versRef(m.close,m.tz,d))}`;
+      tr.querySelector('.opr-h').textContent=`OPR ${hhmm(o)}–${hhmm(o+m.opr/60)}`;
+      const c=tr.querySelector('.chip');c.textContent=MOTS[e.code];c.className='chip '+e.code;
+      tr.querySelector('.cd').textContent=`${e.mot} ${duree(e.t)}`;
+    }
+    if(!vedette||RANG[e.code]<RANG[vedette._e.code]||
+      (RANG[e.code]===RANG[vedette._e.code]&&e.t<vedette._e.t))vedette=m;
+  });
+
+  const b=document.getElementById('banniere'),e=vedette._e;
+  b.className='banniere '+e.code+(e.imminent||e.code==='opr'?' imminent':'');
+  document.getElementById('bQuoi').textContent=
+    e.code==='opr'?'OPR en cours':e.code==='preouv'?'Ouverture imminente':
+    e.code==='ouvert'?'Séance en cours':'Prochaine ouverture';
+  document.getElementById('bQui').textContent=`${vedette.nom} · ${e.mot}`;
+  document.getElementById('bTemps').textContent=duree(e.t);
+
+  tLieu.textContent=refNom().toUpperCase();
+  tOuverts.textContent=ouverts.length?ouverts.join(' · '):(M.continu?'CRYPTO EN CONTINU':'MARCHÉS FERMÉS');
+}
+
+document.querySelectorAll('.modes button').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.modes button').forEach(x=>x.setAttribute('aria-selected','false'));
+  btn.setAttribute('aria-selected','true');mode=btn.dataset.mode;construire();
+}));
+document.getElementById('btnRef').addEventListener('click',()=>{
+  refIdx=(refIdx+1)%REFS.length;
+  document.getElementById('btnRef').textContent=refNom();construire();
+});
+
+construire();
+setInterval(rafraichir,1000);
+requestAnimationFrame(battre);
+</script>
+</body>
+</html>
